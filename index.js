@@ -3,7 +3,20 @@ const cors = require('cors')
 const app = express()
 const port = 4000
 const crypto = require('crypto');
-app.use(cors())
+const allowedOrigins = [
+  "https://test-qrcode-zeta.vercel.app",
+  "http://localhost:5173" 
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
+}));
 app.use(express.json())
 
 
