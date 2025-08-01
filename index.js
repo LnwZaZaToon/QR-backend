@@ -7,7 +7,10 @@ const allowedOrigins = [
   "https://test-qrcode-zeta.vercel.app",
   "http://localhost:5173" 
 ];
-
+const key1 = Buffer.from("1234567891234567", 'utf8');   // Key1
+const iv1 = Buffer.from("s6504062636039za", 'utf8');     // IV1
+const key2 = Buffer.from("1234567891234569", 'utf8');   // Key2
+const iv2 = Buffer.from("s6504062636039za", 'utf8');    // IV2
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -20,29 +23,19 @@ app.use(cors({
 app.use(express.json())
 
 
-function DecryptData(encryptedHex) {
-    function decrypt(encryptedHex, key, ivHex) {
-        const iv = Buffer.from(ivHex, 'hex');
-        const encrypted = Buffer.from(encryptedHex, 'hex');
-        const decipher = crypto.createDecipheriv('aes-128-ctr', key, iv);
-        const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-        return decrypted.toString('utf8');
-    }
-
-    const key1 = Buffer.from("1234567891234567"); // stage 2
-    const key2 = Buffer.from("abcdef9876543210"); // stage 1
-    const iv = Buffer.from("abcdef9876543210")
-    console.log(encryptedHex)
-    // First decrypt with key2
-    const stage1 = decrypt(encryptedHex, key2, iv);
-    console.log("🔓 Stage 1:", stage1);
-
-    // Then decrypt with key1
-    const final = decrypt(stage1, key1, iv);
-    console.log("✅ Final Decrypted:", final);
-
-    return final;
+function aesDecrypt(encryptedBase64, key, iv) {
+  const decipher = crypto.createDecipheriv('aes-128-ctr', key, iv);
+  let decrypted = decipher.update(encryptedBase64, 'base64', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
 }
+
+function doubleDecrypt(encrypted) {
+  const step1 = aesDecrypt(encrypted, key2, iv2);
+  const step2 = aesDecrypt(step1, key1, iv1);
+  return step2;
+}
+
 const MiddleWare = (req, res, next) => {
     const Header = req.headers['authorization'];
     if (!Header || Header !== "admin") {
@@ -61,7 +54,7 @@ app.post('/decrypt', MiddleWare, async (req, res) => {
 
     try {
         console.log(encrypted)
-        const result1 = await DecryptData(encrypted.toString('hex'));
+        const result1 = await doubleDecrypt(encrypted.toString());
         console.log(result1)
         res.send({ data: JSON.parse(result1)});
     } catch (err) {
